@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: assistant
+
+yandex:
+  assistant:
+    # Set YANDEX_CLOUD_API_KEY environment variable before running
+    #api-key: ${YANDEX_CLOUD_API_KEY}
+    api-key: 
+    base-url: https://rest-assistant.api.cloud.yandex.net/v1
+    project: b1gi87p3set9k84higrm
+    prompt-id: fvtcjnqtqendn7goq1ft

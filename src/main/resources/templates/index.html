@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Yandex Assistant</title>
+
+    <!-- jquery.json-viewer CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/jquery.json-viewer@1.4.0/json-viewer/jquery.json-viewer.css"/>
+
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #f4f6f9;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 1rem 2rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 2rem;
+            gap: 1.25rem;
+            width: 100%;
+        }
+
+        /* ── Input form ── */
+        .form-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+            padding: 1.25rem 1.5rem;
+            width: 100%;
+        }
+
+        label[for="inputText"] {
+            display: block;
+            font-weight: 600;
+            margin-bottom: .5rem;
+            font-size: .95rem;
+        }
+
+        #inputText {
+            width: 100%;
+            min-height: 120px;
+            resize: vertical;
+            border: 1px solid #ccd0d9;
+            border-radius: 6px;
+            padding: .75rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color .2s;
+            outline: none;
+        }
+
+        #inputText:focus {
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, .15);
+        }
+
+        .form-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: .75rem;
+        }
+
+        #sendBtn {
+            background: #4a6cf7;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: .65rem 1.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s, opacity .2s;
+        }
+
+        #sendBtn:hover:not(:disabled) {
+            background: #3558e8;
+        }
+
+        #sendBtn:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            display: none;
+            width: 22px;
+            height: 22px;
+            border: 3px solid #ccd0d9;
+            border-top-color: #4a6cf7;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ── Error banner ── */
+        #errorBanner {
+            display: none;
+            background: #fff0f0;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            padding: .75rem 1rem;
+            color: #842029;
+            font-size: .9rem;
+        }
+
+        /* ── Response card ── */
+        .response-card {
+            display: none;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+            padding: 1.25rem 1.5rem;
+            width: 100%;
+        }
+
+        .response-card h2 {
+            margin: 0 0 .75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        /* json-viewer overrides for readability */
+        #jsonDisplay {
+            font-size: .9rem;
+            line-height: 1.6;
+        }
+
+        /* Make the tree use full available width */
+        #jsonDisplay ul {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<header>🤖 Yandex Assistant</header>
+
+<main>
+    <!-- Input form -->
+    <div class="form-card">
+        <label for="inputText">Message</label>
+        <textarea id="inputText" placeholder="Type your message here…" autofocus></textarea>
+        <div class="form-actions">
+            <button id="sendBtn" type="button">Send</button>
+            <div class="spinner" id="spinner"></div>
+        </div>
+    </div>
+
+    <!-- Error banner -->
+    <div id="errorBanner"></div>
+
+    <!-- JSON response tree -->
+    <div class="response-card" id="responseCard">
+        <h2>Response</h2>
+        <pre id="jsonDisplay"></pre>
+    </div>
+</main>
+
+<!-- jQuery (required by json-viewer) -->
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<!-- jquery.json-viewer -->
+<script src="https://cdn.jsdelivr.net/npm/jquery.json-viewer@1.4.0/json-viewer/jquery.json-viewer.js"></script>
+
+<script>
+    const sendBtn    = document.getElementById('sendBtn');
+    const inputText  = document.getElementById('inputText');
+    const spinner    = document.getElementById('spinner');
+    const errorBanner = document.getElementById('errorBanner');
+    const responseCard = document.getElementById('responseCard');
+
+    function setLoading(loading) {
+        sendBtn.disabled = loading;
+        spinner.style.display = loading ? 'block' : 'none';
+    }
+
+    function showError(msg) {
+        errorBanner.textContent = msg;
+        errorBanner.style.display = 'block';
+        responseCard.style.display = 'none';
+    }
+
+    function hideError() {
+        errorBanner.style.display = 'none';
+    }
+
+    async function sendMessage() {
+        const input = inputText.value.trim();
+        if (!input) {
+            showError('Please enter a message before sending.');
+            return;
+        }
+
+        hideError();
+        setLoading(true);
+
+        try {
+            const response = await fetch('/api/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ input })
+            });
+
+            const text = await response.text();
+            let json;
+            try {
+                json = JSON.parse(text);
+            } catch (_) {
+                showError('Server returned non-JSON response: ' + text);
+                return;
+            }
+
+            if (!response.ok) {
+                showError('Error ' + response.status + ': ' + (json.error || JSON.stringify(json)));
+                return;
+            }
+
+            // Render the JSON tree
+            responseCard.style.display = 'block';
+            $('#jsonDisplay').jsonViewer(json, {
+                collapsed: false,
+                withQuotes: true,
+                withLinks: true
+            });
+
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Button click
+    sendBtn.addEventListener('click', sendMessage);
+
+    // Ctrl+Enter / Cmd+Enter shortcut
+    inputText.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            sendMessage();
+        }
+    });
+</script>
+
+</body>
+</html>
